@@ -19,7 +19,9 @@ def parse_date(value: str) -> datetime.datetime:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--show-counts", action="store_true", help="Show a table of total EO counts as well as rate of change chart")
-    parser.add_argument("--start-date", type=parse_date, help="Date to track EOs after (YYYY-MM-DD)")
+    parser.add_argument("--start-date", type=parse_date, help="Date to track EOs after (format YYYY-MM-DD)")
+    parser.add_argument("--end-date", type=parse_date, help="Date to track EOs before (format YYYY-MM-DD)")
+    parser.add_argument("--only-terms", nargs="*", help="Only include the listed presidential terms (format \"Donald J. Trump term 1\")")
     return parser.parse_args()
 
 
@@ -149,6 +151,9 @@ def main() -> None:
         if args.start_date and inauguration.date < args.start_date:
             continue
 
+        if args.end_date and inauguration.date >= args.end_date:
+            continue
+
         if i < len(sorted_inaugurations) - 1:
             sorted_inaugurations[i].term_end_days = (sorted_inaugurations[i + 1].date - inauguration.date).days
         else:
@@ -165,12 +170,19 @@ def main() -> None:
     datapoints = defaultdict(list)
     total_sums = defaultdict(int)
     for term in sorted_terms:
+        if args.only_terms and term not in args.only_terms:
+            continue
+
         for i in range(ONE_YEAR_IN_DAYS):
             if i > inaugurations_by_term[term].term_end_days:
                 break
 
             total_sums[term] += president_per_day[term].get(i, 0)
             datapoints[term].append(total_sums[term])
+
+    if not datapoints:
+        print("No datapoints to display. Did you filter too aggressively?")
+        return
 
     if args.show_counts:
         fig, axes = plt.subplots(2, 1, constrained_layout=True)
@@ -195,6 +207,9 @@ def main() -> None:
         plt.title(title)
 
         for term in sorted_terms:
+            if args.only_terms and term not in args.only_terms:
+                continue
+
             plt.plot(list(range(len(datapoints[term]))), datapoints[term], label=term)
 
         plt.legend()
