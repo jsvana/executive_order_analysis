@@ -12,16 +12,33 @@ EXECUTIVE_ORDERS_URL = "https://www.federalregister.gov/api/v1/documents.json"
 # I'm lazy, sorry not sorry
 ONE_YEAR_IN_DAYS = 365
 
+
 def parse_date(value: str) -> datetime.datetime:
     return datetime.datetime.strptime(value, "%Y-%m-%d")
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--show-counts", action="store_true", help="Show a table of total EO counts as well as rate of change chart")
-    parser.add_argument("--start-date", type=parse_date, help="Date to track EOs after (format YYYY-MM-DD)")
-    parser.add_argument("--end-date", type=parse_date, help="Date to track EOs before (format YYYY-MM-DD)")
-    parser.add_argument("--only-terms", nargs="*", help="Only include the listed presidential terms (format \"Donald J. Trump term 1\")")
+    parser.add_argument(
+        "--show-counts",
+        action="store_true",
+        help="Show a table of total EO counts as well as rate of change chart",
+    )
+    parser.add_argument(
+        "--start-date",
+        type=parse_date,
+        help="Date to track EOs after (format YYYY-MM-DD)",
+    )
+    parser.add_argument(
+        "--end-date",
+        type=parse_date,
+        help="Date to track EOs before (format YYYY-MM-DD)",
+    )
+    parser.add_argument(
+        "--only-terms",
+        nargs="*",
+        help='Only include the listed presidential terms (format "Donald J. Trump term 1")',
+    )
     return parser.parse_args()
 
 
@@ -37,7 +54,9 @@ class Inauguration:
         return Inauguration(president=president, term=0, term_end_days=0, date=date)
 
 
-def find_inauguration(sorted_inaugurations: list[tuple[int, str]], date: datetime.datetime) -> Inauguration:
+def find_inauguration(
+    sorted_inaugurations: list[tuple[int, str]], date: datetime.datetime
+) -> Inauguration:
     index = len(sorted_inaugurations) // 2
     start = 0
     end = len(sorted_inaugurations) - 1
@@ -72,16 +91,18 @@ def main() -> None:
 
         while True:
             if next_url is None:
-                response = requests.get(EXECUTIVE_ORDERS_URL,
-                                        params={
-                                        "conditions[correction]": "0",
-                                        "conditions[presidential_document_type]": "executive_order",
-                                        "conditions[type][]": "PRESDOCU",
-                                        "fields[]": ["signing_date", "title", "executive_order_number"],
-                                        "include_pre_1994_docs": "true",
-                                        "order": "executive_order",
-                                        "per_page": "100",
-                                        })
+                response = requests.get(
+                    EXECUTIVE_ORDERS_URL,
+                    params={
+                        "conditions[correction]": "0",
+                        "conditions[presidential_document_type]": "executive_order",
+                        "conditions[type][]": "PRESDOCU",
+                        "fields[]": ["signing_date", "title", "executive_order_number"],
+                        "include_pre_1994_docs": "true",
+                        "order": "executive_order",
+                        "per_page": "100",
+                    },
+                )
             else:
                 response = requests.get(next_url)
 
@@ -135,7 +156,7 @@ def main() -> None:
         inauguration = find_inauguration(sorted_inaugurations, order_date)
 
         days_from_inauguration = (order_date - inauguration.date).days
-        
+
         term_key = f"{inauguration.president} term {inauguration.term}"
         president_per_day[term_key][days_from_inauguration] += 1
 
@@ -155,9 +176,13 @@ def main() -> None:
             continue
 
         if i < len(sorted_inaugurations) - 1:
-            sorted_inaugurations[i].term_end_days = (sorted_inaugurations[i + 1].date - inauguration.date).days
+            sorted_inaugurations[i].term_end_days = (
+                sorted_inaugurations[i + 1].date - inauguration.date
+            ).days
         else:
-            sorted_inaugurations[i].term_end_days = (datetime.datetime.now() - inauguration.date).days
+            sorted_inaugurations[i].term_end_days = (
+                datetime.datetime.now() - inauguration.date
+            ).days
 
         term_key = f"{inauguration.president} term {inauguration.term}"
         sorted_terms.append(term_key)
@@ -186,7 +211,7 @@ def main() -> None:
 
     if args.show_counts:
         fig, axes = plt.subplots(2, 1, constrained_layout=True)
-        axes[0].axis('off')
+        axes[0].axis("off")
         axes[0].table(cellText=table_data, colLabels=["term", "#EOs total"])
         axes[0].set_title("#EOs count")
 
@@ -195,7 +220,9 @@ def main() -> None:
         axes[1].set_title("Rate of EOs by term")
 
         for term in sorted_terms:
-            axes[1].plot(list(range(len(datapoints[term]))), datapoints[term], label=term)
+            axes[1].plot(
+                list(range(len(datapoints[term]))), datapoints[term], label=term
+            )
 
         axes[1].legend()
     else:
@@ -203,7 +230,9 @@ def main() -> None:
         plt.ylabel("total EOs to date")
         title = "Rate of EOs by term"
         if args.start_date:
-            title += " for terms starting after {}".format(args.start_date.strftime("%Y-%m-%d"))
+            title += " for terms starting after {}".format(
+                args.start_date.strftime("%Y-%m-%d")
+            )
         plt.title(title)
 
         for term in sorted_terms:
