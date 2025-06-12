@@ -27,7 +27,12 @@ def parse_args() -> argparse.Namespace:
 class Inauguration:
     president: str
     term: int
+    term_end_days: int
     date: datetime.datetime
+
+    @classmethod
+    def new(cls, president: str, date: datetime.datetime) -> "Inauguration":
+        return Inauguration(president=president, term=0, term_end_days=0, date=date)
 
 
 def find_inauguration(sorted_inaugurations: list[tuple[int, str]], date: datetime.datetime) -> Inauguration:
@@ -107,7 +112,7 @@ def main() -> None:
     for president, inauguration_dates in inaugurations.items():
         for inauguration_date in inauguration_dates:
             date = datetime.datetime.strptime(inauguration_date, "%m/%d/%Y")
-            sorted_inaugurations.append(Inauguration(president=president, term=0, date=date))
+            sorted_inaugurations.append(Inauguration.new(president, date))
 
     sorted_inaugurations.sort(key=lambda t: t.date)
 
@@ -134,15 +139,24 @@ def main() -> None:
 
         by_term[term_key].append(order)
 
+    inaugurations_by_term = {}
     sorted_terms = []
-    for inauguration in sorted_inaugurations:
+
+    for i, inauguration in enumerate(sorted_inaugurations):
         if inauguration.date < earliest_order_date:
             continue
 
         if args.start_date and inauguration.date < args.start_date:
             continue
 
-        sorted_terms.append(f"{inauguration.president} term {inauguration.term}")
+        if i < len(sorted_inaugurations) - 1:
+            sorted_inaugurations[i].term_end_days = (sorted_inaugurations[i + 1].date - inauguration.date).days
+        else:
+            sorted_inaugurations[i].term_end_days = (datetime.datetime.now() - inauguration.date).days
+
+        term_key = f"{inauguration.president} term {inauguration.term}"
+        sorted_terms.append(term_key)
+        inaugurations_by_term[term_key] = sorted_inaugurations[i]
 
     table_data = []
     for term in sorted_terms:
@@ -150,8 +164,11 @@ def main() -> None:
 
     datapoints = defaultdict(list)
     total_sums = defaultdict(int)
-    for i in range(ONE_YEAR_IN_DAYS):
-        for term in sorted_terms:
+    for term in sorted_terms:
+        for i in range(ONE_YEAR_IN_DAYS):
+            if i > inaugurations_by_term[term].term_end_days:
+                break
+
             total_sums[term] += president_per_day[term].get(i, 0)
             datapoints[term].append(total_sums[term])
 
@@ -166,7 +183,7 @@ def main() -> None:
         axes[1].set_title("Rate of EOs by term")
 
         for term in sorted_terms:
-            axes[1].plot(list(range(ONE_YEAR_IN_DAYS)), datapoints[term], label=term)
+            axes[1].plot(list(range(len(datapoints[term]))), datapoints[term], label=term)
 
         axes[1].legend()
     else:
@@ -178,7 +195,7 @@ def main() -> None:
         plt.title(title)
 
         for term in sorted_terms:
-            plt.plot(list(range(ONE_YEAR_IN_DAYS)), datapoints[term], label=term)
+            plt.plot(list(range(len(datapoints[term]))), datapoints[term], label=term)
 
         plt.legend()
 
