@@ -12,6 +12,11 @@ EXECUTIVE_ORDERS_URL = "https://www.federalregister.gov/api/v1/documents.json"
 # I'm lazy, sorry not sorry
 ONE_YEAR_IN_DAYS = 365
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--show-counts", action="store_true", help="Show a table of total EO counts as well as rate of change chart")
+    return parser.parse_args()
+
 
 @dataclass
 class Inauguration:
@@ -41,6 +46,8 @@ def find_inauguration(sorted_inaugurations: list[tuple[int, str]], date: datetim
 
 
 def main() -> None:
+    args = parse_args()
+
     cache_dir = xdg_cache_home() / "executive_order_analysis"
     cache_dir.mkdir(exist_ok=True)
 
@@ -140,22 +147,31 @@ def main() -> None:
             total_sums[term] += president_per_day[term].get(i, 0)
             datapoints[term].append(total_sums[term])
 
-    fig, axes = plt.subplots(2, 1, constrained_layout=True)
-    axes[0].axis('off')
-    axes[0].table(cellText=table_data, colLabels=["term", "#EOs total"])
-    axes[0].set_title("#EOs count")
+    if args.show_counts:
+        fig, axes = plt.subplots(2, 1, constrained_layout=True)
+        axes[0].axis('off')
+        axes[0].table(cellText=table_data, colLabels=["term", "#EOs total"])
+        axes[0].set_title("#EOs count")
 
-    axes[1].set_xlabel("days since inauguration")
-    axes[1].set_ylabel("total EOs to date")
-    axes[1].set_title("Rate of EOs by term")
+        axes[1].set_xlabel("days since inauguration")
+        axes[1].set_ylabel("total EOs to date")
+        axes[1].set_title("Rate of EOs by term")
 
-    for term in sorted_terms:
-        axes[1].plot(list(range(ONE_YEAR_IN_DAYS)), datapoints[term], label=term)
+        for term in sorted_terms:
+            axes[1].plot(list(range(ONE_YEAR_IN_DAYS)), datapoints[term], label=term)
 
-    axes[1].legend()
+        axes[1].legend()
+    else:
+        plt.xlabel("days since inauguration")
+        plt.ylabel("total EOs to date")
+        plt.title("Rate of EOs by term")
+
+        for term in sorted_terms:
+            plt.plot(list(range(ONE_YEAR_IN_DAYS)), datapoints[term], label=term)
+
+        plt.legend()
 
     plt.show()
-
 
 
 if __name__ == "__main__":
