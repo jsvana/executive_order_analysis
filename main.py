@@ -41,7 +41,7 @@ def find_inauguration(sorted_inaugurations: list[tuple[int, str]], date: datetim
 
 
 def main() -> None:
-    cache_dir = xdg_cache_home() / "trump_analysis"
+    cache_dir = xdg_cache_home() / "executive_order_analysis"
     cache_dir.mkdir(exist_ok=True)
 
     expected_path = cache_dir / "executive_orders.json"
