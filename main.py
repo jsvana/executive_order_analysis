@@ -12,9 +12,14 @@ EXECUTIVE_ORDERS_URL = "https://www.federalregister.gov/api/v1/documents.json"
 # I'm lazy, sorry not sorry
 ONE_YEAR_IN_DAYS = 365
 
+def parse_date(value: str) -> datetime.datetime:
+    return datetime.datetime.strptime(value, "%Y-%m-%d")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--show-counts", action="store_true", help="Show a table of total EO counts as well as rate of change chart")
+    parser.add_argument("--start-date", type=parse_date, help="Date to track EOs after (YYYY-MM-DD)")
     return parser.parse_args()
 
 
@@ -134,6 +139,9 @@ def main() -> None:
         if inauguration.date < earliest_order_date:
             continue
 
+        if args.start_date and inauguration.date < args.start_date:
+            continue
+
         sorted_terms.append(f"{inauguration.president} term {inauguration.term}")
 
     table_data = []
@@ -164,7 +172,10 @@ def main() -> None:
     else:
         plt.xlabel("days since inauguration")
         plt.ylabel("total EOs to date")
-        plt.title("Rate of EOs by term")
+        title = "Rate of EOs by term"
+        if args.start_date:
+            title += " for terms starting after {}".format(args.start_date.strftime("%Y-%m-%d"))
+        plt.title(title)
 
         for term in sorted_terms:
             plt.plot(list(range(ONE_YEAR_IN_DAYS)), datapoints[term], label=term)
