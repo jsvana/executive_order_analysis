@@ -13,6 +13,7 @@ EXECUTIVE_ORDERS_URL = "https://www.federalregister.gov/api/v1/documents.json"
 @dataclass
 class Inauguration:
     president: str
+    term: int
     date: datetime.datetime
 
 
@@ -91,15 +92,34 @@ def main() -> None:
     for president, inauguration_dates in inaugurations.items():
         for inauguration_date in inauguration_dates:
             date = datetime.datetime.strptime(inauguration_date, "%m/%d/%Y")
-            sorted_inaugurations.append(Inauguration(president, date))
+            sorted_inaugurations.append(Inauguration(president=president, term=0, date=date))
 
     sorted_inaugurations.sort(key=lambda t: t.date)
 
+    seen_count = defaultdict(int)
+    for i, inauguration in enumerate(sorted_inaugurations):
+        seen_count[inauguration.president] += 1
+        sorted_inaugurations[i].term = seen_count[inauguration.president]
+
     by_president = defaultdict(list)
+    earliest_order_date = None
+    president_per_day = defaultdict(lambda: defaultdict(int))
+
     for order in executive_orders:
-        inauguration = find_inauguration(sorted_inaugurations, datetime.datetime.strptime(order["signing_date"], "%Y-%m-%d"))
+        order_date = datetime.datetime.strptime(order["signing_date"], "%Y-%m-%d")
+        if earliest_order_date is None or earliest_order_date > order_date:
+            earliest_order_date = order_date
+
+        inauguration = find_inauguration(sorted_inaugurations, order_date)
+
+        days_from_inauguration = (order_date - inauguration.date).days
+        president_per_day[f"{inauguration.president} term {inauguration.term}"][days_from_inauguration] += 1
+
         by_president[inauguration.president].append(order)
 
+    print(president_per_day)
+
+    print(f"Earliest found EO date: {order_date}")
     for president, orders in by_president.items():
         print(f"{president}: {len(orders)}")
 
