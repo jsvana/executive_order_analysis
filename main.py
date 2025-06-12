@@ -9,8 +9,6 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 
 EXECUTIVE_ORDERS_URL = "https://www.federalregister.gov/api/v1/documents.json"
-# I'm lazy, sorry not sorry
-ONE_YEAR_IN_DAYS = 365
 
 
 def parse_date(value: str) -> datetime.datetime:
@@ -198,12 +196,15 @@ def main() -> None:
         if args.only_terms and term not in args.only_terms:
             continue
 
-        for i in range(ONE_YEAR_IN_DAYS):
+        i = 0
+        while True:
             if i > inaugurations_by_term[term].term_end_days:
                 break
 
             total_sums[term] += president_per_day[term].get(i, 0)
             datapoints[term].append(total_sums[term])
+
+            i += 1
 
     if not datapoints:
         print("No datapoints to display. Did you filter too aggressively?")
