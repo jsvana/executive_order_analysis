@@ -6,8 +6,11 @@ import time
 import datetime
 from dataclasses import dataclass
 from collections import defaultdict
+import matplotlib.pyplot as plt
 
 EXECUTIVE_ORDERS_URL = "https://www.federalregister.gov/api/v1/documents.json"
+# I'm lazy, sorry not sorry
+ONE_YEAR_IN_DAYS = 365
 
 
 @dataclass
@@ -101,7 +104,7 @@ def main() -> None:
         seen_count[inauguration.president] += 1
         sorted_inaugurations[i].term = seen_count[inauguration.president]
 
-    by_president = defaultdict(list)
+    by_term = defaultdict(list)
     earliest_order_date = None
     president_per_day = defaultdict(lambda: defaultdict(int))
 
@@ -113,15 +116,46 @@ def main() -> None:
         inauguration = find_inauguration(sorted_inaugurations, order_date)
 
         days_from_inauguration = (order_date - inauguration.date).days
-        president_per_day[f"{inauguration.president} term {inauguration.term}"][days_from_inauguration] += 1
+        
+        term_key = f"{inauguration.president} term {inauguration.term}"
+        president_per_day[term_key][days_from_inauguration] += 1
 
-        by_president[inauguration.president].append(order)
+        by_term[term_key].append(order)
 
-    print(president_per_day)
+    sorted_terms = []
+    for inauguration in sorted_inaugurations:
+        if inauguration.date < earliest_order_date:
+            continue
 
-    print(f"Earliest found EO date: {order_date}")
-    for president, orders in by_president.items():
-        print(f"{president}: {len(orders)}")
+        sorted_terms.append(f"{inauguration.president} term {inauguration.term}")
+
+    table_data = []
+    for term in sorted_terms:
+        table_data.append([term, len(by_term[term])])
+
+    datapoints = defaultdict(list)
+    total_sums = defaultdict(int)
+    for i in range(ONE_YEAR_IN_DAYS):
+        for term in sorted_terms:
+            total_sums[term] += president_per_day[term].get(i, 0)
+            datapoints[term].append(total_sums[term])
+
+    fig, axes = plt.subplots(2, 1, constrained_layout=True)
+    axes[0].axis('off')
+    axes[0].table(cellText=table_data, colLabels=["term", "#EOs total"])
+    axes[0].set_title("#EOs count")
+
+    axes[1].set_xlabel("days since inauguration")
+    axes[1].set_ylabel("total EOs to date")
+    axes[1].set_title("Rate of EOs by term")
+
+    for term in sorted_terms:
+        axes[1].plot(list(range(ONE_YEAR_IN_DAYS)), datapoints[term], label=term)
+
+    axes[1].legend()
+
+    plt.show()
+
 
 
 if __name__ == "__main__":
